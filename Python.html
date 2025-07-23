@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Python Quiz</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #89f7fe, #f0a6ca, #b388eb);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    .timer {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+      background-color: #fff3;
+      padding: 8px 16px;
+      border-radius: 10px;
+      color: #fff;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 1000px;
+    }
+    .card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s ease;
+    }
+    .card:hover {
+      transform: scale(1.02);
+    }
+    .card.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #6200ea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+    #popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+      border-radius: 15px;
+      display: none;
+      z-index: 999;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.8s ease;
+    }
+    #popup.show {
+      display: block;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <h1>Python Quiz</h1>
+  <div class="timer" id="timer">10:00</div>
+  <div class="grid" id="quiz-grid">
+    <div class="card" id="basic-section">
+      <h2>Basic</h2>
+      <form id="basic-form"></form>
+      <button onclick="submitSection('basic')">Submit Basic</button>
+    </div>
+    <div class="card disabled" id="intermediate-section">
+      <h2>Intermediate</h2>
+      <form id="intermediate-form"></form>
+      <button onclick="submitSection('intermediate')">Submit Intermediate</button>
+    </div>
+    <div class="card disabled" id="advanced-section">
+      <h2>Advanced</h2>
+      <form id="advanced-form"></form>
+      <button onclick="submitSection('advanced')">Submit Advanced</button>
+    </div>
+  </div>
+
+  <div id="popup">
+    <h2>🎉 Congrats! You completed the quiz.</h2>
+    <p>Your score: <span id="score"></span>/15</p>
+    <button onclick="restartQuiz()">Restart Quiz</button>
+  </div>
+
+  <script>
+    const questions = {
+      basic: [
+        { q: "What is the output of print(2 ** 3)?", o: ["6", "8", "9", "5"], answer: "8" },
+        { q: "What does len('Python') return?", o: ["5", "6", "7", "8"], answer: "6" },
+        { q: "Which keyword is used for function?", o: ["func", "def", "function", "define"], answer: "def" },
+        { q: "Which of these is a Python data type?", o: ["float", "number", "decimal", "digit"], answer: "float" },
+        { q: "Which of these is a correct variable name?", o: ["2value", "value$", "_value", "value-1"], answer: "_value" }
+      ],
+      intermediate: [
+        { q: "What does the 'in' keyword check for?", o: ["membership", "equality", "type", "none"], answer: "membership" },
+        { q: "What is the result of 5 // 2?", o: ["2.5", "2", "3", "2.0"], answer: "2" },
+        { q: "Which module is used to generate random numbers?", o: ["random", "math", "numbers", "os"], answer: "random" },
+        { q: "Which of the following is immutable?", o: ["list", "set", "dict", "tuple"], answer: "tuple" },
+        { q: "How do you start a comment in Python?", o: ["//", "#", "/*", "<!--"], answer: "#" }
+      ],
+      advanced: [
+        { q: "What is the output of list(range(0))?", o: ["[0]", "[]", "[None]", "Error"], answer: "[]" },
+        { q: "What is the result of bool('False')?", o: ["False", "True", "Error", "None"], answer: "True" },
+        { q: "Which method is used to add element to a set?", o: ["add()", "append()", "insert()", "put()"], answer: "add()" },
+        { q: "Which of these creates a dictionary?", o: ["{}", "[]", "()", "<>"], answer: "{}" },
+        { q: "Which is used to handle exceptions?", o: ["try/except", "if/else", "for/while", "import/except"], answer: "try/except" }
+      ]
+    };
+
+    let totalScore = 0;
+    let timerInterval;
+
+    function renderQuestions(section) {
+      const form = document.getElementById(section + "-form");
+      form.innerHTML = "";
+      questions[section].forEach((q, i) => {
+        const fieldset = document.createElement("fieldset");
+        const legend = document.createElement("legend");
+        legend.textContent = q.q;
+        fieldset.appendChild(legend);
+        q.o.forEach(opt => {
+          const label = document.createElement("label");
+          const input = document.createElement("input");
+          input.type = "radio";
+          input.name = `${section}-q${i}`;
+          input.value = opt;
+          label.appendChild(input);
+          label.append(" " + opt);
+          fieldset.appendChild(label);
+          fieldset.appendChild(document.createElement("br"));
+        });
+        form.appendChild(fieldset);
+      });
+    }
+
+    function submitSection(section) {
+      let score = 0;
+      questions[section].forEach((q, i) => {
+        const selected = document.querySelector(`input[name="${section}-q${i}"]:checked`);
+        if (selected && selected.value === q.answer) {
+          score++;
+        }
+      });
+      totalScore += score;
+      document.getElementById(section + "-section").classList.add("disabled");
+
+      if (section === "basic") {
+        document.getElementById("intermediate-section").classList.remove("disabled");
+      } else if (section === "intermediate") {
+        document.getElementById("advanced-section").classList.remove("disabled");
+      } else if (section === "advanced") {
+        endQuiz();
+      }
+    }
+
+    function startTimer(duration, display) {
+      let timer = duration;
+      timerInterval = setInterval(function () {
+        const minutes = parseInt(timer / 60, 10);
+        const seconds = parseInt(timer % 60, 10);
+        display.textContent = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+        if (--timer < 0) {
+          clearInterval(timerInterval);
+          endQuiz();
+        }
+      }, 1000);
+    }
+
+    function endQuiz() {
+      document.getElementById("quiz-grid").style.display = "none";
+      document.getElementById("score").textContent = totalScore;
+      const popup = document.getElementById("popup");
+      popup.classList.add("show");
+    }
+
+    function restartQuiz() {
+      totalScore = 0;
+      clearInterval(timerInterval);
+      document.getElementById("quiz-grid").style.display = "grid";
+      document.getElementById("popup").classList.remove("show");
+      document.getElementById("basic-section").classList.remove("disabled");
+      document.getElementById("intermediate-section").classList.add("disabled");
+      document.getElementById("advanced-section").classList.add("disabled");
+      ["basic", "intermediate", "advanced"].forEach(renderQuestions);
+      startTimer(600, document.getElementById("timer"));
+    }
+
+    window.onload = function () {
+      ["basic", "intermediate", "advanced"].forEach(renderQuestions);
+      startTimer(600, document.getElementById("timer"));
+    };
+  </script>
+</body>
+</html>
